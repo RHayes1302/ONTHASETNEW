@@ -20,6 +20,7 @@ class Event: Identifiable {
     var isFavorite: Bool = false
     var latitude: Double = 0.0
     var longitude: Double = 0.0
+    var securityCode: String = "" // NEW: Stores the pin
     @Attribute(.externalStorage) var imageData: Data?
 
     @Transient
@@ -33,12 +34,13 @@ class Event: Identifiable {
         }
     }
 
-    // FIXED: This init matches your UI and prevents the "Extra Arguments" error
-    init(title: String, date: Date, category: EventCategory, locationName: String = "", details: String = "") {
+    init(title: String, date: Date, category: EventCategory, locationName: String = "", details: String = "", securityCode: String = "") {
+        self.id = UUID()
         self.title = title
         self.date = date
         self.category = category
         self.locationName = locationName
         self.details = details
+        self.securityCode = securityCode
     }
 }

@@ -7,50 +7,35 @@
 
 import Foundation
 import CoreLocation
-import MapKit
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
+    @Published var userLocation: CLLocation?
     
-    @Published var location: CLLocation?
-    @Published var authorizationStatus: CLAuthorizationStatus?
-
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
-    }
-
-    func requestLocation() {
+        // 1. Request permission when the manager starts
         manager.requestWhenInUseAuthorization()
-        manager.startUpdatingLocation()
-    }
-
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        self.location = locations.last
     }
     
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
+    func requestLocation() {
+        // 2. Explicitly ask for a location update
+        manager.startUpdatingLocation()
     }
-
-    // Logic to calculate distance between user and event
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        userLocation = locations.last
+        manager.stopUpdatingLocation() // Stop to save battery
+    }
+    
+    // 3. Helper function to calculate distance
     func isNearby(event: Event, radiusInMiles: Double) -> Bool {
-        guard let userLoc = self.location else { return false }
-        
+        guard let userLoc = userLocation else { return true } // Show all if location is unknown
         let eventLoc = CLLocation(latitude: event.latitude, longitude: event.longitude)
         let distanceInMeters = userLoc.distance(from: eventLoc)
         let distanceInMiles = distanceInMeters / 1609.34
-        
         return distanceInMiles <= radiusInMiles
-    }
-
-    // Logic to open Apple Maps
-    func openMapForEvent(_ event: Event) {
-        let coordinate = CLLocationCoordinate2D(latitude: event.latitude, longitude: event.longitude)
-        let placemark = MKPlacemark(coordinate: coordinate)
-        let mapItem = MKMapItem(placemark: placemark)
-        mapItem.name = event.title
-        mapItem.openInMaps()
     }
 }

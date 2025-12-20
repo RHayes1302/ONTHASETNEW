@@ -16,11 +16,15 @@ struct AddEditEventView: View {
     var eventToEdit: Event
     var onSave: (Event) -> Void
     
+    // Form States
     @State private var title: String = ""
     @State private var date: Date = Date()
     @State private var locationName: String = ""
     @State private var category: EventCategory = .community
+    @State private var details: String = ""
+    @State private var securityCode: String = ""
     
+    // Media States
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImageData: Data?
 
@@ -32,15 +36,17 @@ struct AddEditEventView: View {
                 Text("EVENT DETAILS")
                     .font(.headline)
                     .foregroundColor(.yellow)
+                    .padding(.top)
                 
                 ScrollView {
-                    VStack(spacing: 15) {
-                        flyerSection // sub-expression 1
-                        formFields   // sub-expression 2
+                    VStack(spacing: 25) {
+                        flyerSection // The photo icon is the button
+                        formFields   // Contains Details and Security
                     }
+                    .padding(.bottom, 20)
                 }
                 
-                actionButtons        // sub-expression 3
+                actionButtons
             }
             .padding()
         }
@@ -55,102 +61,174 @@ struct AddEditEventView: View {
     }
 }
 
-// MARK: - Sub-Expressions
+// MARK: - UI Sub-Expressions
 extension AddEditEventView {
     
     private var flyerSection: some View {
-        VStack {
-            if let data = selectedImageData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 180)
-                    .cornerRadius(10)
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.1))
-                    .frame(height: 150)
-                    .overlay(Image(systemName: "photo.badge.plus").foregroundColor(.yellow))
-            }
-            
-            PhotosPicker(selection: $selectedItem, matching: .images) {
-                Text("Select Flyer").font(.caption).foregroundColor(.yellow)
+        PhotosPicker(selection: $selectedItem, matching: .images) {
+            ZStack {
+                if let data = selectedImageData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 200)
+                        .frame(maxWidth: .infinity)
+                        .cornerRadius(12)
+                        .clipped()
+                        .overlay(
+                            Text("CHANGE PHOTO")
+                                .font(.caption2.bold())
+                                .foregroundColor(.black)
+                                .padding(6)
+                                .background(Color.yellow)
+                                .cornerRadius(5)
+                                .padding(10),
+                            alignment: .bottomTrailing
+                        )
+                } else {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(height: 160)
+                        .overlay(
+                            VStack(spacing: 12) {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.yellow)
+                                Text("TAP TO ADD FLYER")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.yellow)
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(Color.yellow.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [5]))
+                        )
+                }
             }
         }
+        .buttonStyle(.plain)
     }
     
     private var formFields: some View {
-        VStack(spacing: 15) {
-            TextField("Title", text: $title)
-                .modifier(FormTextFieldStyle())
+        VStack(spacing: 18) {
+            fieldContainer(label: "EVENT TITLE") {
+                TextField("What's the set called?", text: $title)
+                    .modifier(FormTextFieldStyle())
+            }
             
-            DatePicker("Date", selection: $date)
-                .colorScheme(.dark)
+            fieldContainer(label: "DATE & TIME") {
+                DatePicker("", selection: $date)
+                    .colorScheme(.dark)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(8)
+            }
+            
+            fieldContainer(label: "LOCATION") {
+                TextField("Venue or Address", text: $locationName)
+                    .modifier(FormTextFieldStyle())
+            }
+            
+            fieldContainer(label: "CATEGORY") {
+                HStack {
+                    Text("Category").foregroundColor(.gray)
+                    Spacer()
+                    Picker("", selection: $category) {
+                        ForEach(EventCategory.allCases, id: \.self) { cat in
+                            Text(cat.rawValue).tag(cat)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
                 .padding()
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(8)
+            }
             
-            TextField("Location", text: $locationName)
-                .modifier(FormTextFieldStyle())
+            fieldContainer(label: "DETAILS / CAPTION") {
+                TextEditor(text: $details)
+                    .frame(height: 100)
+                    .padding(8)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(8)
+                    .foregroundColor(.white)
+            }
             
-            categoryPicker
+            fieldContainer(label: "SECURITY CODE (REQUIRED TO DELETE)") {
+                SecureField("Enter a private pin", text: $securityCode)
+                    .modifier(FormTextFieldStyle())
+            }
         }
     }
     
-    private var categoryPicker: some View {
-        HStack {
-            Text("Category").foregroundColor(.white)
-            Spacer()
-            Picker("Category", selection: $category) {
-                ForEach(EventCategory.allCases, id: \.self) { cat in
-                    Text(cat.displayName).tag(cat)
-                }
-            }
-            .pickerStyle(.menu)
+    private func fieldContainer<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+                .font(.caption2.bold())
+                .foregroundColor(.yellow)
+                .padding(.leading, 5)
+            content()
         }
-        .padding()
-        .background(Color.white.opacity(0.1))
-        .cornerRadius(8)
     }
     
     private var actionButtons: some View {
         VStack(spacing: 12) {
             Button(action: saveData) {
-                Text("SUBMIT")
+                Text("POST EVENT")
                     .font(.headline.bold())
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(title.isEmpty ? Color.gray : Color.yellow)
+                    .background(isReadyToSubmit ? Color.yellow : Color.gray)
                     .cornerRadius(12)
             }
-            .disabled(title.isEmpty)
+            .disabled(!isReadyToSubmit)
             
             Button("Cancel") { dismiss() }
+                .font(.subheadline)
                 .foregroundColor(.red)
         }
     }
+    
+    private var isReadyToSubmit: Bool {
+        !title.isEmpty && !securityCode.isEmpty
+    }
 }
 
-// MARK: - Logic & Styles
+// MARK: - Logic
 extension AddEditEventView {
     private func loadInitialData() {
-        title = eventToEdit.title
-        date = eventToEdit.date
-        locationName = eventToEdit.locationName
-        category = eventToEdit.category
-        selectedImageData = eventToEdit.imageData
+        if !eventToEdit.title.isEmpty {
+            title = eventToEdit.title
+            date = eventToEdit.date
+            locationName = eventToEdit.locationName
+            category = eventToEdit.category
+            details = eventToEdit.details
+            securityCode = eventToEdit.securityCode
+            selectedImageData = eventToEdit.imageData
+        }
     }
 
     private func saveData() {
-        eventToEdit.title = title
-        eventToEdit.date = date
-        eventToEdit.locationName = locationName
-        eventToEdit.category = category
-        eventToEdit.imageData = selectedImageData
-        onSave(eventToEdit)
+        // We create a fresh new event to ensure SwiftData recognizes it as a new entry
+        let finalEvent = Event(
+            title: title,
+            date: date,
+            category: category,
+            locationName: locationName,
+            details: details,
+            securityCode: securityCode
+        )
+        finalEvent.imageData = selectedImageData
+        
+        onSave(finalEvent) // Passes to DefaultPageView for modelContext.insert()
         dismiss()
     }
 }
 
+// Global UI Modifier
 struct FormTextFieldStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
