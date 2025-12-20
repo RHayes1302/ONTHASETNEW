@@ -7,40 +7,61 @@
 
 import Foundation
 import SwiftData
-import UIKit
+import UIKit // Required for UIImage
 
 @Model
-class Event: Identifiable {
-    var id: UUID = UUID()
+final class Event {
     var title: String
     var date: Date
     var category: EventCategory
-    var locationName: String = ""
-    var details: String = ""
-    var isFavorite: Bool = false
-    var latitude: Double = 0.0
-    var longitude: Double = 0.0
-    var securityCode: String = "" // NEW: Stores the pin
+    var locationName: String
+    var details: String
+    var securityCode: String
+    
+    // 1. This is the property that actually saves to the database
     @Attribute(.externalStorage) var imageData: Data?
+    
+    var price: String
+    var venmoUser: String
+    var cashAppUser: String
+    var latitude: Double
+    var longitude: Double
+    var isFavorite: Bool
 
+    // 2. ADD THIS: The "shortcut" property your View is looking for
     @Transient
     var image: UIImage? {
-        get {
-            guard let data = imageData else { return nil }
+        if let data = imageData {
             return UIImage(data: data)
         }
-        set {
-            imageData = newValue?.jpegData(compressionQuality: 0.8)
-        }
+        return nil
     }
 
-    init(title: String, date: Date, category: EventCategory, locationName: String = "", details: String = "", securityCode: String = "") {
-        self.id = UUID()
+    init(
+        title: String = "",
+        date: Date = Date(),
+        category: EventCategory = .community,
+        locationName: String = "",
+        details: String = "",
+        securityCode: String = "",
+        latitude: Double = 0.0,
+        longitude: Double = 0.0,
+        price: String = "",
+        venmoUser: String = "",
+        cashAppUser: String = "",
+        isFavorite: Bool = false
+    ) {
         self.title = title
         self.date = date
         self.category = category
         self.locationName = locationName
         self.details = details
         self.securityCode = securityCode
+        self.latitude = latitude
+        self.longitude = longitude
+        self.price = price
+        self.venmoUser = venmoUser
+        self.cashAppUser = cashAppUser
+        self.isFavorite = isFavorite
     }
 }
