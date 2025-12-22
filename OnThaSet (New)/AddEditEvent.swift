@@ -12,28 +12,20 @@ import PhotosUI
 import CoreLocation
 
 struct AddEditEventView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
     var eventToEdit: Event
     var onSave: (Event) -> Void
     
-    // Form States
     @State private var title: String = ""
     @State private var date: Date = Date()
     @State private var locationName: String = ""
     @State private var category: EventCategory = .community
     @State private var details: String = ""
     @State private var securityCode: String = ""
-    
-    // Payment States
     @State private var price: String = "3.00"
-    @State private var venmoUser: String = ""
-    @State private var cashAppUser: String = ""
-    
-    // Alert State
     @State private var showPaymentAlert = false
-    
-    // Media States
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImageData: Data?
 
@@ -41,46 +33,29 @@ struct AddEditEventView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            VStack(spacing: 20) {
-                Text("EVENT DETAILS")
-                    .font(.headline)
-                    .foregroundColor(.yellow)
-                    .padding(.top)
+            VStack(spacing: 0) {
+                // BRANDED HEADER
+                headerSection
                 
                 ScrollView {
                     VStack(spacing: 25) {
                         flyerSection
                         formFields
                         planSelectionSection
-                        paymentFields
+                        paymentButtonsSection
                     }
-                    .padding(.bottom, 20)
+                    .padding()
                 }
                 
-                // --- POST BUTTON ---
-                VStack(spacing: 12) {
-                    Button(action: { showPaymentAlert = true }) {
-                        Text("POST EVENT (\(price == "3.00" ? "$3.00" : "$10.00"))")
-                            .font(.headline.bold())
-                            .foregroundColor(.black)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(isReadyToSubmit ? Color.yellow : Color.gray)
-                            .cornerRadius(12)
-                    }
-                    .disabled(!isReadyToSubmit)
-                    
-                    Button("Cancel") { dismiss() }.foregroundColor(.red)
-                }
+                submitButtonSection
             }
-            .padding()
         }
-        // --- PAYMENT DISCLAIMER ALERT ---
-        .alert("Payment Required", isPresented: $showPaymentAlert) {
+        .navigationBarHidden(true)
+        .alert("Confirm Payment", isPresented: $showPaymentAlert) {
             Button("I HAVE PAID") { saveData() }
             Button("CANCEL", role: .cancel) { }
         } message: {
-            Text("By clicking 'I HAVE PAID', you confirm that you have sent $\(price) to the administrator. Posts without matching payments will be removed.")
+            Text("Confirm payment has been sent. Your post will be verified by the admin.")
         }
         .onAppear { loadInitialData() }
         .onChange(of: selectedItem) { _, newItem in
@@ -91,103 +66,34 @@ struct AddEditEventView: View {
             }
         }
     }
-}
 
-// MARK: - UI Sub-Expressions
-extension AddEditEventView {
-    
-    private var planSelectionSection: some View {
-        fieldContainer(label: "SELECT POSTING PLAN") {
-            HStack(spacing: 12) {
-                Button(action: { price = "3.00" }) {
-                    VStack(spacing: 4) {
-                        Text("SINGLE POST").font(.caption2.bold())
-                        Text("$3.00").font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(price == "3.00" ? Color.yellow : Color.white.opacity(0.1))
-                    .foregroundColor(price == "3.00" ? .black : .white)
-                    .cornerRadius(10)
-                }
-                
-                Button(action: { price = "10.00" }) {
-                    VStack(spacing: 4) {
-                        Text("MONTHLY").font(.caption2.bold())
-                        Text("$10.00").font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(price == "10.00" ? Color.yellow : Color.white.opacity(0.1))
-                    .foregroundColor(price == "10.00" ? .black : .white)
-                    .cornerRadius(10)
-                }
-            }
-        }
-    }
-    
-    private var paymentFields: some View {
-        VStack(spacing: 24) {
-            // VENMO DIRECT BUTTON
-            VStack(alignment: .leading, spacing: 10) {
-                fieldContainer(label: "VENMO USERNAME") {
-                    TextField("@username", text: $venmoUser)
-                        .modifier(FormTextFieldStyle())
-                        .autocorrectionDisabled()
-                }
-                
-                Button(action: {
-                    let cleanVenmo = venmoUser.replacingOccurrences(of: "@", with: "")
-                    if let url = URL(string: "https://venmo.com/\(cleanVenmo)") {
-                        UIApplication.shared.open(url)
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.up.right.square.fill")
-                        Text("PAY WITH VENMO")
-                    }
-                    .font(.subheadline.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(venmoUser.isEmpty ? Color.gray : Color(red: 0, green: 0.55, blue: 0.88))
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-                .disabled(venmoUser.isEmpty)
-            }
-            
-            // CASH APP DIRECT BUTTON
-            VStack(alignment: .leading, spacing: 10) {
-                fieldContainer(label: "CASH APP TAG") {
-                    TextField("$cashtag", text: $cashAppUser)
-                        .modifier(FormTextFieldStyle())
-                        .autocorrectionDisabled()
-                }
-                
-                Button(action: {
-                    let cleanCash = cashAppUser.replacingOccurrences(of: "$", with: "")
-                    if let url = URL(string: "https://cash.app/\(cleanCash)") {
-                        UIApplication.shared.open(url)
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: "dollarsign.circle.fill")
-                        Text("PAY WITH CASH APP")
-                    }
-                    .font(.subheadline.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(cashAppUser.isEmpty ? Color.gray : Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-                .disabled(cashAppUser.isEmpty)
-            }
+    // MARK: - Sub-Views
 
-            fieldContainer(label: "SECURITY PIN") {
-                SecureField("Required to delete later", text: $securityCode).modifier(FormTextFieldStyle())
+    private var headerSection: some View {
+        HStack {
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .foregroundColor(.yellow)
+                    .font(.title3.bold())
             }
+            Spacer()
+            ZStack {
+                Image(systemName: "shield.fill")
+                    .font(.system(size: 45))
+                    .foregroundColor(.yellow)
+                VStack(spacing: -1) {
+                    Text("ON").font(.system(size: 7, weight: .black))
+                    Text("THA").font(.system(size: 6, weight: .black))
+                    Text("SET").font(.system(size: 9, weight: .black))
+                }
+                .foregroundColor(.black)
+                .offset(y: -2)
+            }
+            Spacer()
+            Image(systemName: "xmark").opacity(0)
         }
+        .padding(.horizontal, 25)
+        .padding(.vertical, 10)
     }
 
     private var flyerSection: some View {
@@ -205,19 +111,114 @@ extension AddEditEventView {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.white.opacity(0.1))
                         .frame(height: 150)
-                        .overlay(Label("ADD FLYER", systemImage: "photo.badge.plus").foregroundColor(.yellow))
+                        .overlay(
+                            VStack(spacing: 8) {
+                                Image(systemName: "photo.badge.plus").font(.title)
+                                Text("ADD EVENT FLYER").font(.caption.bold())
+                            }
+                            .foregroundColor(.yellow)
+                        )
                 }
             }
         }
     }
-    
+
     private var formFields: some View {
         VStack(spacing: 18) {
-            fieldContainer(label: "EVENT TITLE") { TextField("Title", text: $title).modifier(FormTextFieldStyle()) }
-            fieldContainer(label: "LOCATION") { TextField("Address", text: $locationName).modifier(FormTextFieldStyle()) }
+            fieldContainer(label: "EVENT TITLE") {
+                TextField("Set Name", text: $title).modifier(FormTextFieldStyle())
+            }
+            fieldContainer(label: "LOCATION") {
+                TextField("Venue / Address", text: $locationName).modifier(FormTextFieldStyle())
+            }
+            fieldContainer(label: "DETAILS") {
+                TextField("Description", text: $details, axis: .vertical)
+                    .lineLimit(3...5)
+                    .modifier(FormTextFieldStyle())
+            }
         }
     }
-    
+
+    private var planSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("SELECT PLAN").font(.caption2.bold()).foregroundColor(.yellow)
+            HStack(spacing: 12) {
+                planBtn(label: "SINGLE POST", val: "3.00")
+                planBtn(label: "UNLIMITED MONTH", val: "10.00")
+            }
+        }
+    }
+
+    private func planBtn(label: String, val: String) -> some View {
+        Button(action: { price = val }) {
+            VStack {
+                Text(label).font(.system(size: 8, weight: .black))
+                Text("$\(val)").font(.headline.bold())
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(price == val ? Color.yellow : Color.white.opacity(0.1))
+            .foregroundColor(price == val ? .black : .white)
+            .cornerRadius(10)
+        }
+    }
+
+    private var paymentButtonsSection: some View {
+        VStack(spacing: 15) {
+            Text("PAYMENT METHOD").font(.caption2.bold()).foregroundColor(.yellow).frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 10) {
+                // FIXED APPLE PAY BUTTON
+                Button(action: { showPaymentAlert = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "applelogo")
+                            .font(.system(size: 16))
+                        Text("Pay")
+                            .font(.system(size: 19, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    .foregroundColor(.black)
+                    .cornerRadius(10)
+                }
+                
+                payBtn(label: "Venmo", color: Color(red: 0, green: 0.5, blue: 1)) { openURL("https://venmo.com/") }
+                payBtn(label: "Cash App", color: .green) { openURL("https://cash.app/") }
+            }
+            fieldContainer(label: "SECURITY PIN (REQUIRED)") {
+                SecureField("4-digit pin", text: $securityCode)
+                    .modifier(FormTextFieldStyle())
+                    .keyboardType(.numberPad)
+            }
+        }
+    }
+
+    private func payBtn(label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label.uppercased())
+                .font(.system(size: 10, weight: .black))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(color)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+        }
+    }
+
+    private var submitButtonSection: some View {
+        Button(action: { showPaymentAlert = true }) {
+            Text("CONFIRM & POST")
+                .font(.headline.bold())
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(!title.isEmpty && !securityCode.isEmpty ? Color.yellow : Color.gray)
+                .cornerRadius(12)
+        }
+        .disabled(title.isEmpty || securityCode.isEmpty)
+        .padding()
+    }
+
     private func fieldContainer<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(label).font(.caption2.bold()).foregroundColor(.yellow).padding(.leading, 5)
@@ -225,12 +226,13 @@ extension AddEditEventView {
         }
     }
     
-    private var isReadyToSubmit: Bool { !title.isEmpty && !securityCode.isEmpty }
-}
+    private func openURL(_ urlString: String) {
+        if let url = URL(string: urlString) { UIApplication.shared.open(url) }
+    }
 
-// MARK: - Logic
-extension AddEditEventView {
-    private func loadInitialData() {
+    // MARK: - Logic & Helpers
+    
+    func loadInitialData() {
         if !eventToEdit.title.isEmpty {
             title = eventToEdit.title
             date = eventToEdit.date
@@ -239,27 +241,29 @@ extension AddEditEventView {
             details = eventToEdit.details
             securityCode = eventToEdit.securityCode
             selectedImageData = eventToEdit.imageData
-            price = eventToEdit.price.isEmpty ? "3.00" : eventToEdit.price
-            venmoUser = eventToEdit.venmoUser
-            cashAppUser = eventToEdit.cashAppUser
+            price = eventToEdit.price
         }
     }
 
-    private func saveData() {
+    func saveData() {
         let geocoder = CLGeocoder()
         geocoder.geocodeAddressString(locationName) { placemarks, _ in
             let coordinate = placemarks?.first?.location?.coordinate
             let finalEvent = Event(
-                title: title, date: date, category: category, locationName: locationName, details: details, securityCode: securityCode,
-                latitude: coordinate?.latitude ?? 0.0, longitude: coordinate?.longitude ?? 0.0,
-                price: price, venmoUser: venmoUser, cashAppUser: cashAppUser
+                title: title, date: date, category: category,
+                locationName: locationName, details: details,
+                securityCode: securityCode, price: price,
+                latitude: coordinate?.latitude ?? 0.0,
+                longitude: coordinate?.longitude ?? 0.0
             )
             finalEvent.imageData = selectedImageData
-            DispatchQueue.main.async { onSave(finalEvent); dismiss() }
+            onSave(finalEvent)
+            dismiss()
         }
     }
 }
 
+// Global View Modifier
 struct FormTextFieldStyle: ViewModifier {
     func body(content: Content) -> some View {
         content.padding().background(Color.white.opacity(0.1)).cornerRadius(8).foregroundColor(.white)

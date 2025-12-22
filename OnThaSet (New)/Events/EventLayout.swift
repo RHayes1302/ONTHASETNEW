@@ -7,36 +7,25 @@
 
 import Foundation
 import SwiftData
-import UIKit // Required for UIImage
+import UIKit
 
 @Model
-final class Event {
+class Event {
     var title: String
     var date: Date
     var category: EventCategory
     var locationName: String
     var details: String
     var securityCode: String
-    
-    // 1. This is the property that actually saves to the database
-    @Attribute(.externalStorage) var imageData: Data?
-    
     var price: String
-    var venmoUser: String
-    var cashAppUser: String
+    
+    // ADD THIS LINE TO FIX THE ERROR
+    var isFavorite: Bool = false
+    
+    @Attribute(.externalStorage) var imageData: Data?
     var latitude: Double
     var longitude: Double
-    var isFavorite: Bool
-
-    // 2. ADD THIS: The "shortcut" property your View is looking for
-    @Transient
-    var image: UIImage? {
-        if let data = imageData {
-            return UIImage(data: data)
-        }
-        return nil
-    }
-
+    
     init(
         title: String = "",
         date: Date = Date(),
@@ -44,12 +33,10 @@ final class Event {
         locationName: String = "",
         details: String = "",
         securityCode: String = "",
+        price: String = "3.00",
+        isFavorite: Bool = false, // Add to initializer
         latitude: Double = 0.0,
-        longitude: Double = 0.0,
-        price: String = "",
-        venmoUser: String = "",
-        cashAppUser: String = "",
-        isFavorite: Bool = false
+        longitude: Double = 0.0
     ) {
         self.title = title
         self.date = date
@@ -57,11 +44,17 @@ final class Event {
         self.locationName = locationName
         self.details = details
         self.securityCode = securityCode
+        self.price = price
+        self.isFavorite = isFavorite
         self.latitude = latitude
         self.longitude = longitude
-        self.price = price
-        self.venmoUser = venmoUser
-        self.cashAppUser = cashAppUser
-        self.isFavorite = isFavorite
+    }
+    
+    // Helper for displaying the image
+    var image: UIImage? {
+        if let data = imageData {
+            return UIImage(data: data)
+        }
+        return nil
     }
 }

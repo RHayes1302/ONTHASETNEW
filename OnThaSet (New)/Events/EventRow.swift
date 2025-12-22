@@ -5,51 +5,51 @@
 //  Created by Ramone Hayes on 12/7/25.
 //
 
-import SwiftUI
-import SwiftData
+import SwiftUI  // <--- This is the missing piece
+import SwiftData // You also need this to access your Events
+
 
 struct EventRow: View {
-    // 1. Use 'var' instead of '@Binding' for SwiftData models
-    var event: Event
-
+    let event: Event
+    
     var body: some View {
-        HStack(spacing: 12) {
-            // 2. This uses the 'image' computed property we added to Event.swift
-            if let uiImage = event.image {
+        HStack(spacing: 15) {
+            // Mini Flyer Thumbnail
+            if let data = event.imageData, let uiImage = UIImage(data: data) {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 50, height: 50)
-                    .clipped()
+                    .frame(width: 80, height: 80)
                     .cornerRadius(8)
+                    .clipped()
             } else {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.white.opacity(0.1))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundColor(.gray)
-                    )
+                    .frame(width: 80, height: 80)
+                    .overlay(Image(systemName: "music.note").foregroundColor(.yellow))
             }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(event.title)
+            
+            VStack(alignment: .leading, spacing: 5) {
+                Text(event.title.uppercased())
                     .font(.headline)
                     .foregroundColor(.white)
                 
-                Text(event.date, style: .date)
+                Text(event.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.subheadline)
+                    .foregroundColor(.yellow)
+                
+                Label(event.locationName, systemImage: "mappin")
+                    .font(.caption)
                     .foregroundColor(.gray)
             }
             
             Spacer()
-
-            // 3. Use the manual binding for the favorite toggle
-            FavoriteToggle(isFavorite: Binding(
-                get: { event.isFavorite },
-                set: { event.isFavorite = $0 }
-            ))
+            
+            Image(systemName: "chevron.right")
+                .foregroundColor(.gray)
         }
-        .padding(.vertical, 4)
+        .padding()
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(12)
     }
 }

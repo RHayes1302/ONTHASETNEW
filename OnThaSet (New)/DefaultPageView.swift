@@ -7,13 +7,17 @@
 
 import SwiftUI
 import SwiftData
+import AuthenticationServices
 
 struct DefaultPageView: View {
-    @EnvironmentObject var authService: AuthService
     @Environment(\.modelContext) private var modelContext
-    
     @Query(sort: \Event.date) private var allEvents: [Event]
+    @Query private var profiles: [UserProfile] // Tracks user login and post count
+    
     @StateObject private var locationManager = LocationManager()
+    @State private var showingLogin = false
+    @State private var showingLimitAlert = false
+    @State private var navigateToPost = false
 
     var body: some View {
         NavigationStack {
@@ -23,16 +27,31 @@ struct DefaultPageView: View {
                 ScrollView {
                     VStack(spacing: 30) {
                         
-                        // 1. HEADER
-                        Text("ON-THE-SET")
-                            .font(.system(size: 32, weight: .black))
-                            .padding(.horizontal, 25)
-                            .padding(.vertical, 5)
-                            .background(Color.yellow)
-                            .foregroundColor(.black)
-                            .padding(.top, 40)
+                        // 1. BRANDED HIGHWAY SHIELD HEADER (Text Removed for Clean Look)
+                        VStack(spacing: 0) {
+                            ZStack {
+                                Image(systemName: "shield.fill")
+                                    .font(.system(size: 85)) // Slightly larger since it's the solo star
+                                    .foregroundColor(.yellow)
+                                
+                                VStack(spacing: -2) {
+                                    Text("ON")
+                                        .font(.system(size: 15, weight: .black))
+                                        .foregroundColor(.black)
+                                    Text("THA")
+                                        .font(.system(size: 12, weight: .black))
+                                        .foregroundColor(.black)
+                                    Text("SET")
+                                        .font(.system(size: 20, weight: .black))
+                                        .foregroundColor(.black)
+                                }
+                                .offset(y: -4)
+                            }
+                        }
+                        .padding(.top, 50)
+                        .padding(.bottom, 10)
 
-                        // 2. FEATURED CARDS
+                        // 2. FEATURED CARDS OR PLACEHOLDER
                         if !allEvents.isEmpty {
                             VStack(alignment: .leading, spacing: 15) {
                                 Text("HOTTEST SETS")
@@ -52,12 +71,12 @@ struct DefaultPageView: View {
                                 }
                             }
                         } else {
-                            Image("ONTHASET") // Ensure this image is in your Assets
+                            Image("ONTHASET")
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 280, height: 280)
                                 .clipped()
-                                .border(Color.white, width: 1)
+                                .border(Color.yellow.opacity(0.5), width: 1) // Yellow border to match brand
                         }
 
                         Text("What's On The Set Nearby")
@@ -66,7 +85,11 @@ struct DefaultPageView: View {
 
                         // 3. ACTION BUTTONS
                         VStack(spacing: 12) {
-                            // Points to your Nearby logic
+                            
+                            NavigationLink(destination: EventHomeView(initialMode: .list)) {
+                                makeMenuButton(text: "VIEW POSTED EVENTS")
+                            }
+
                             NavigationLink(destination: NearbyEventsView()) {
                                 makeMenuButton(text: "EVENTS NEARBY")
                             }
@@ -74,17 +97,13 @@ struct DefaultPageView: View {
                                 locationManager.requestLocation()
                             })
 
-                            NavigationLink(destination: AddEditEventView(
-                                eventToEdit: Event(title: "", date: Date(), category: .community),
-                                onSave: { newEvent in
-                                    modelContext.insert(newEvent)
-                                    try? modelContext.save()
-                                }
-                            )) {
+                            // PROTECTED POST BUTTON
+                            Button(action: {
+                                handlePostAttempt()
+                            }) {
                                 makeMenuButton(text: "POST EVENT")
                             }
 
-                            // FIXED: Points to AboutView instead of blank Text
                             NavigationLink(destination: AboutView()) {
                                 makeMenuButton(text: "ABOUT")
                             }
@@ -94,6 +113,68 @@ struct DefaultPageView: View {
                     }
                 }
             }
+            .navigationDestination(isPresented: $navigateToPost) {
+                AddEditEventView(
+                    eventToEdit: Event(
+                        title: "",
+                        date: Date(),
+                        category: .community,
+                        locationName: "",
+                        details: "",
+                        securityCode: "",
+                        price: "3.00",
+                        latitude: 0.0,
+                        longitude: 0.0
+                    ),
+                    onSave: { newEvent in
+                        modelContext.insert(newEvent)
+                        updatePostCount()
+                        try? modelContext.save()
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showingLogin) {
+            LoginView()
+        }
+        .alert("Monthly Limit Reached", isPresented: $showingLimitAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("You have reached your limit of 4 posts this month.")
+        }
+    }
+
+    // MARK: - Logic Helpers
+
+    func handlePostAttempt() {
+        guard let profile = profiles.first else {
+            showingLogin = true
+            return
+        }
+        
+        checkAndResetMonthlyCount(profile: profile)
+        
+        if profile.postsThisMonth >= 4 {
+            showingLimitAlert = true
+        } else {
+            navigateToPost = true
+        }
+    }
+
+    func checkAndResetMonthlyCount(profile: UserProfile) {
+        let calendar = Calendar.current
+        let currentMonth = calendar.component(.month, from: Date())
+        let lastPostMonth = calendar.component(.month, from: profile.lastPostDate ?? Date.distantPast)
+        
+        if currentMonth != lastPostMonth {
+            profile.postsThisMonth = 0
+        }
+    }
+
+    func updatePostCount() {
+        if let profile = profiles.first {
+            profile.postsThisMonth += 1
+            profile.lastPostDate = Date()
         }
     }
 
